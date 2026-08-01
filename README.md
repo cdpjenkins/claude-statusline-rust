@@ -36,12 +36,12 @@ claude-statusline-rust < initial-test-data/input.json
 
 ## Segments
 
-| Segment | Example | Shown when |
-|---------|---------|------------|
-| directory | ` my-project ` | `workspace.current_dir` is present |
-| git | ` ⎇ main ● ` | the directory is inside a git repository |
-| model | ` ✱ Opus 5 ` | `model.display_name` is present |
-| context | ` ◔ 20,812 (98%) ` | both `total_input_tokens` and `remaining_percentage` are present |
+| Segment   | Example            | Shown when                                                       |
+|-----------|--------------------|------------------------------------------------------------------|
+| directory | ` my-project `     | `workspace.current_dir` is present                               |
+| git       | ` ⎇ main ● `       | the directory is inside a git repository                         |
+| model     | ` ✱ Opus 5 `      | `model.display_name` is present                                  |
+| context   | ` ◔ 20,812 (98%) ` | both `total_input_tokens` and `remaining_percentage` are present |
 
 **directory** — the last component of `workspace.current_dir`, so a session in
 `/Users/you/code/my-project` shows `my-project`.
