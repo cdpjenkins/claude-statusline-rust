@@ -82,6 +82,10 @@ Each step is one red-green-refactor cycle.
    worse than one that omits a segment. Decide per-segment fallbacks once the
    happy path is solid.
 
+   `current_directory` and `render` currently parse the same JSON separately,
+   each with its own `unwrap`. Both parses want replacing at once, so the
+   duplication is left in place until this step decides what parsing returns.
+
 ## Dependencies
 
 - `serde` + `serde_json` for parsing the input. The input JSON has many fields

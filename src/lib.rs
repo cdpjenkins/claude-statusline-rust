@@ -47,6 +47,12 @@ fn segment(background: u8, foreground: u8, text: String) -> Segment {
 const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
+pub fn current_directory(session_json: &str) -> String {
+    let session: Session = serde_json::from_str(session_json).unwrap();
+
+    session.workspace.current_dir
+}
+
 pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
     let session: Session = serde_json::from_str(session_json).unwrap();
 
