@@ -140,18 +140,18 @@ fn abbreviate(tokens: u64) -> String {
     }
 }
 
+const DIGITS_PER_GROUP: usize = 3;
+
 fn group_digits(tokens: u64) -> String {
-    let digits = tokens.to_string();
-    let mut grouped = String::new();
+    let digits: Vec<char> = tokens.to_string().chars().collect();
 
-    for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index) % 3 == 0 {
-            grouped.push(',');
-        }
-        grouped.push(digit);
-    }
+    let groups: Vec<String> = digits
+        .rchunks(DIGITS_PER_GROUP)
+        .rev()
+        .map(|group| group.iter().collect())
+        .collect();
 
-    grouped
+    groups.join(",")
 }
 
 #[cfg(test)]
@@ -182,5 +182,30 @@ mod abbreviate_tests {
     fn rounds_to_the_nearest_decimal_place() {
         assert_eq!(abbreviate(20_850), "20.9K");
         assert_eq!(abbreviate(20_999), "21.0K");
+    }
+}
+
+#[cfg(test)]
+mod group_digits_tests {
+    use super::group_digits;
+
+    #[test]
+    fn leaves_counts_of_three_digits_or_fewer_ungrouped() {
+        assert_eq!(group_digits(0), "0");
+        assert_eq!(group_digits(7), "7");
+        assert_eq!(group_digits(999), "999");
+    }
+
+    #[test]
+    fn separates_thousands_with_a_comma() {
+        assert_eq!(group_digits(1_000), "1,000");
+        assert_eq!(group_digits(20_812), "20,812");
+        assert_eq!(group_digits(999_999), "999,999");
+    }
+
+    #[test]
+    fn separates_each_group_of_three_digits() {
+        assert_eq!(group_digits(1_000_000), "1,000,000");
+        assert_eq!(group_digits(20_812_000), "20,812,000");
     }
 }
