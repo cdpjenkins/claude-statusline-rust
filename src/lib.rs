@@ -8,26 +8,48 @@ pub struct GitStatus {
 }
 
 #[derive(Deserialize)]
-struct Session {
-    model: Model,
-    workspace: Workspace,
-    context_window: ContextWindow,
+pub struct Session {
+    model: Option<Model>,
+    workspace: Option<Workspace>,
+    context_window: Option<ContextWindow>,
 }
 
 #[derive(Deserialize)]
 struct Model {
-    display_name: String,
+    display_name: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct Workspace {
-    current_dir: String,
+    current_dir: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct ContextWindow {
-    total_input_tokens: u64,
-    remaining_percentage: u8,
+    total_input_tokens: Option<u64>,
+    remaining_percentage: Option<u8>,
+}
+
+impl Session {
+    pub fn parse(session_json: &str) -> Option<Session> {
+        serde_json::from_str(session_json).ok()
+    }
+
+    pub fn current_directory(&self) -> Option<&str> {
+        self.workspace.as_ref()?.current_dir.as_deref()
+    }
+
+    fn model_name(&self) -> Option<&str> {
+        self.model.as_ref()?.display_name.as_deref()
+    }
+
+    fn total_input_tokens(&self) -> Option<u64> {
+        self.context_window.as_ref()?.total_input_tokens
+    }
+
+    fn remaining_percentage(&self) -> Option<u8> {
+        self.context_window.as_ref()?.remaining_percentage
+    }
 }
 
 struct Segment {
@@ -47,55 +69,65 @@ fn segment(background: u8, foreground: u8, text: String) -> Segment {
 const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
-pub fn current_directory(session_json: &str) -> String {
-    let session: Session = serde_json::from_str(session_json).unwrap();
+pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
+    let statusline = match Session::parse(session_json) {
+        Some(session) => render_session(&session, git_status),
+        None => String::new(),
+    };
 
-    session.workspace.current_dir
+    if statusline.is_empty() {
+        return render_lines(&[vec![segment(238, 231, "⚠ statusline".to_string())]]);
+    }
+
+    statusline
 }
 
-pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
-    let session: Session = serde_json::from_str(session_json).unwrap();
-
-    let context_window = &session.context_window;
-
+fn render_session(session: &Session, git_status: Option<&GitStatus>) -> String {
     let lines = [
-        directory_line(&session.workspace.current_dir, git_status),
-        vec![
-            segment(237, 231, format!("✱ {}", session.model.display_name)),
-            segment(
-                235,
-                51,
-                format!(
-                    "§ {} tokens",
-                    abbreviate(context_window.total_input_tokens)
-                ),
-            ),
-        ],
-        vec![segment(
-            240,
-            251,
-            format!(
-                "◔ {} ({}%)",
-                group_digits(context_window.total_input_tokens),
-                context_window.remaining_percentage
-            ),
-        )],
+        directory_line(session.current_directory(), git_status),
+        model_line(session),
+        context_line(session),
     ];
 
+    render_lines(&lines)
+}
+
+fn render_lines(lines: &[Vec<Segment>]) -> String {
     lines
         .iter()
+        .filter(|segments| !segments.is_empty())
         .map(|segments| render_line(segments) + "\n")
         .collect()
 }
 
-fn directory_line(current_dir: &str, git_status: Option<&GitStatus>) -> Vec<Segment> {
-    let mut segments = vec![segment(136, 231, directory_name(current_dir))];
+fn directory_line(current_dir: Option<&str>, git_status: Option<&GitStatus>) -> Vec<Segment> {
+    let directory = current_dir.map(|dir| segment(136, 231, directory_name(dir)));
+    let git = git_status.map(|status| segment(238, 231, git_description(status)));
 
-    if let Some(git_status) = git_status {
-        segments.push(segment(238, 231, git_description(git_status)));
+    [directory, git].into_iter().flatten().collect()
+}
+
+fn model_line(session: &Session) -> Vec<Segment> {
+    let model = session
+        .model_name()
+        .map(|name| segment(237, 231, format!("✱ {}", name)));
+
+    let tokens = session
+        .total_input_tokens()
+        .map(|tokens| segment(235, 51, format!("§ {} tokens", abbreviate(tokens))));
+
+    [model, tokens].into_iter().flatten().collect()
+}
+
+fn context_line(session: &Session) -> Vec<Segment> {
+    match (session.total_input_tokens(), session.remaining_percentage()) {
+        (Some(tokens), Some(remaining)) => vec![segment(
+            240,
+            251,
+            format!("◔ {} ({}%)", group_digits(tokens), remaining),
+        )],
+        _ => Vec::new(),
     }
-
-    segments
 }
 
 fn render_line(segments: &[Segment]) -> String {

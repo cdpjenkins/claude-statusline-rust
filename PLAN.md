@@ -78,13 +78,16 @@ Each step is one red-green-refactor cycle.
    result. Verify end-to-end by piping `input.json` into the binary.
 
 6. **Degrade gracefully.**
-   Missing or malformed fields should not panic — a statusline that fails is
-   worse than one that omits a segment. Decide per-segment fallbacks once the
-   happy path is solid.
+   Every field on the session is optional, so a segment is rendered only when
+   the value behind it is present. A missing `context_window` costs the token
+   and context segments and nothing else.
 
-   `current_directory` and `render` currently parse the same JSON separately,
-   each with its own `unwrap`. Both parses want replacing at once, so the
-   duplication is left in place until this step decides what parsing returns.
+   When the session cannot be parsed at all, or carries nothing worth showing,
+   the statusline is a single `⚠ statusline` segment. Either way the exit
+   status is zero and stdout is never a panic message.
+
+   This removed both duplicate parses: `main` parses once to find the
+   directory to ask git about, and `render` parses to build the lines.
 
 ## Dependencies
 

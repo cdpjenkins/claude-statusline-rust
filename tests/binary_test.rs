@@ -22,6 +22,30 @@ fn run_statusline(session_json: &str) -> String {
 }
 
 #[test]
+fn warns_instead_of_failing_when_the_session_is_not_json() {
+    let statusline = run_statusline("this is not json");
+
+    assert!(statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn warns_instead_of_failing_when_stdin_is_empty() {
+    let statusline = run_statusline("");
+
+    assert!(statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn warns_instead_of_failing_when_the_session_is_truncated() {
+    let session_json = include_str!("../initial-test-data/input.json");
+    let truncated = &session_json[..session_json.len() / 2];
+
+    let statusline = run_statusline(truncated);
+
+    assert!(statusline.contains("⚠ statusline"));
+}
+
+#[test]
 fn writes_the_statusline_for_a_session_on_stdin() {
     let session_json = include_str!("../initial-test-data/input.json");
 
