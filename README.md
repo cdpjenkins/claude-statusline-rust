@@ -5,7 +5,7 @@ session JSON that Claude Code writes to stdin and prints a single powerline
 style line to stdout.
 
 ```
- claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ § 20.8K tokens ▶ ◔ 20,812 (98%) ▶
+ claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ ◔ 20,812 (98%) ▶
 ```
 
 ## Installing
@@ -41,8 +41,7 @@ claude-statusline-rust < initial-test-data/input.json
 | directory | ` my-project ` | `workspace.current_dir` is present |
 | git | ` ⎇ main ● ` | the directory is inside a git repository |
 | model | ` ✱ Opus 5 ` | `model.display_name` is present |
-| tokens | ` § 20.8K tokens ` | `context_window.total_input_tokens` is present |
-| context | ` ◔ 20,812 (98%) ` | both the token count and `remaining_percentage` are present |
+| context | ` ◔ 20,812 (98%) ` | both `total_input_tokens` and `remaining_percentage` are present |
 
 **directory** — the last component of `workspace.current_dir`, so a session in
 `/Users/you/code/my-project` shows `my-project`.
@@ -54,13 +53,9 @@ directory rather than from stdin, since Claude Code does not report it.
 
 **model** — `model.display_name` as Claude Code gives it, e.g. `Opus 5`.
 
-**tokens** — `context_window.total_input_tokens`, abbreviated: plain digits
-below a thousand, then one decimal place with a `K` or `M` suffix. The switch
-to `M` happens at a million exactly, so `999,999` shows as `1000.0K`.
-
-**context** — the same token count grouped with commas, followed by
-`context_window.remaining_percentage`: how much of the context window is
-still free.
+**context** — `context_window.total_input_tokens` grouped with commas,
+followed by `context_window.remaining_percentage`: how much of the context
+window is still free.
 
 ## When something is missing
 
@@ -90,15 +85,13 @@ segment's background. Colours are 256 colour ANSI codes:
 | directory | 136 | 231 |
 | git | 238 | 231 |
 | model | 237 | 231 |
-| tokens | 235 | 51 |
 | context | 240 | 251 |
 | warning | 238 | 231 |
 
-The line runs to 70–80 columns in practice: this repository on `main` renders
-81. The model, tokens and context segments cost about 45 columns between them
-whatever the session, and the directory and branch names make up the rest. A
-narrow terminal wraps it onto a second row. Dropping the tokens segment would
-save 17 columns, since it repeats the count the context segment already shows.
+The line runs to about 64 columns for this repository on `main`. The model and
+context segments cost 28 columns between them whatever the session, and the
+directory and branch names make up the rest, so a long branch name is what
+pushes it wide enough for a narrow terminal to wrap it.
 
 ## Development
 

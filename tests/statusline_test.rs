@@ -24,14 +24,13 @@ fn omits_the_model_segment_when_the_model_is_missing() {
 }
 
 #[test]
-fn omits_the_token_segments_when_the_context_window_is_missing() {
+fn omits_the_context_segment_when_the_context_window_is_missing() {
     let session_json = r#"{"workspace":{"current_dir":"/x/project"},
         "model":{"display_name":"Opus 5"}}"#;
 
     let statusline = render(session_json, None);
 
     assert!(statusline.contains("Opus 5"));
-    assert!(!statusline.contains("tokens"));
     assert!(!statusline.contains('◔'));
 }
 

@@ -55,7 +55,6 @@ fn writes_the_statusline_for_a_session_on_stdin() {
     assert_eq!(lines.len(), 1);
     assert!(lines[0].contains("initial-test-data"));
     assert!(lines[0].contains("Opus 5"));
-    assert!(lines[0].contains("20.8K tokens"));
     assert!(lines[0].contains("20,812 (98%)"));
 }
 
