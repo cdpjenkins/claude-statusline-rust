@@ -14,7 +14,7 @@ fn renders_the_statusline_for_a_session() {
 }
 
 #[test]
-fn omits_the_model_line_when_the_model_is_missing() {
+fn omits_the_model_segment_when_the_model_is_missing() {
     let session_json = r#"{"workspace":{"current_dir":"/x/project"}}"#;
 
     let statusline = render(session_json, None);
@@ -63,8 +63,7 @@ fn omits_the_git_segment_outside_a_repository() {
     let session_json = include_str!("../initial-test-data/input.json");
 
     let statusline = render(session_json, None);
-    let directory_line = statusline.lines().next().unwrap();
 
-    assert!(directory_line.contains("initial-test-data"));
-    assert!(!directory_line.contains('⎇'));
+    assert!(statusline.contains("initial-test-data"));
+    assert!(!statusline.contains('⎇'));
 }

@@ -1,41 +1,42 @@
 # Claude Code Statusline — Plan
 
 A Rust binary that reads Claude Code's session JSON on stdin and writes a
-three-line powerline-style statusline to stdout.
+single-line powerline-style statusline to stdout.
 
 ## Target output
 
 For the session described by `initial-test-data/input.json`:
 
 ```
- initial-test-data ▶ ⎇ main ●
- ✱ Opus 5 ▶ § 20.8K tokens
- ◔ 20,812 (98%)
+ initial-test-data ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ § 20.8K tokens ▶ ◔ 20,812 (98%) ▶
 ```
 
 Byte-for-byte expected output lives in `initial-test-data/expected.txt`.
 
 ## Segment layout
 
-Each line is a sequence of segments separated by `U+E0B0` (powerline right
-arrow). A segment is `bg` + `fg` + `" text "`. The separator between two
-segments takes the *next* segment's background and the *previous* segment's
-foreground; the line ends with a trailing separator whose foreground is the
-last segment's background.
+The statusline is a sequence of segments separated by `U+E0B0` (powerline
+right arrow). A segment is `bg` + `fg` + `" text "`. The separator between
+two segments takes the *next* segment's background and the *previous*
+segment's foreground; the line ends with a trailing separator whose
+foreground is the last segment's background.
 
-| Line | Segment | bg / fg | Content | Source |
-|------|---------|---------|---------|--------|
-| 1 | directory | 136 / 231 | `initial-test-data` | basename of `workspace.current_dir` |
-| 1 | git | 238 / 231 | `⎇ main ●` | git port (not stdin) |
-| 2 | model | 237 / 231 | `✱ Opus 5` | `model.display_name` |
-| 2 | tokens | 235 / 51 | `§ 20.8K tokens` | `context_window.total_input_tokens` |
-| 3 | context | 240 / 251 | `◔ 20,812 (98%)` | `context_window.total_input_tokens`, `context_window.remaining_percentage` |
+| Segment | bg / fg | Content | Source |
+|---------|---------|---------|--------|
+| directory | 136 / 231 | `initial-test-data` | basename of `workspace.current_dir` |
+| git | 238 / 231 | `⎇ main ●` | git port (not stdin) |
+| model | 237 / 231 | `✱ Opus 5` | `model.display_name` |
+| tokens | 235 / 51 | `§ 20.8K tokens` | `context_window.total_input_tokens` |
+| context | 240 / 251 | `◔ 20,812 (98%)` | `context_window.total_input_tokens`, `context_window.remaining_percentage` |
 
 ### Formatting rules
 
-- Token count on line 2 is abbreviated: `20812` → `20.8K` (one decimal place).
-- Token count on line 3 is grouped with commas: `20812` → `20,812`.
-- The percentage on line 3 is `remaining_percentage`, in parentheses.
+- The token count is abbreviated in the tokens segment: `20812` → `20.8K`
+  (one decimal place).
+- The same count is grouped with commas in the context segment: `20812` →
+  `20,812`.
+- The percentage in the context segment is `remaining_percentage`, in
+  parentheses.
 - The git dirty marker `●` is shown only when the working tree has changes.
 
 ## Decisions taken
@@ -88,6 +89,29 @@ Each step is one red-green-refactor cycle.
 
    This removed both duplicate parses: `main` parses once to find the
    directory to ask git about, and `render` parses to build the lines.
+
+7. **Collapse onto a single line.**
+   The three-line layout came from the original `output.txt` capture and was
+   pinned by the golden test from step 1 onwards. Claude Code renders each
+   newline as its own row, which is not what the statusline should look like.
+
+   `expected.txt` was regenerated as one line of all five segments, which
+   failed the step-1 golden test on the newlines as intended.
+
+   `render_lines` had appended `"\n"` after every line. The segment lists are
+   now concatenated and rendered as a single line, with one trailing newline
+   on the output.
+
+   The three builders were renamed to `directory_segments`, `model_segments`
+   and `context_segments`: they contribute segments to the line rather than
+   producing lines of their own. Each still owns its segments, so the
+   step-6 behaviour is unchanged — a missing `context_window` drops its
+   segments from the middle of the line rather than removing a row.
+
+   The line is 76 columns wide for the example session. A narrower terminal
+   will wrap it, which would look like this problem returning. Dropping the
+   `§ 20.8K tokens` segment would bring it to about 55, since it repeats the
+   count already shown by `◔ 20,812`.
 
 ## Dependencies
 

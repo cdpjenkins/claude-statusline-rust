@@ -52,11 +52,21 @@ fn writes_the_statusline_for_a_session_on_stdin() {
     let statusline = run_statusline(session_json);
     let lines: Vec<&str> = statusline.lines().collect();
 
-    assert_eq!(lines.len(), 3);
+    assert_eq!(lines.len(), 1);
     assert!(lines[0].contains("initial-test-data"));
-    assert!(lines[1].contains("Opus 5"));
-    assert!(lines[1].contains("20.8K tokens"));
-    assert!(lines[2].contains("20,812 (98%)"));
+    assert!(lines[0].contains("Opus 5"));
+    assert!(lines[0].contains("20.8K tokens"));
+    assert!(lines[0].contains("20,812 (98%)"));
+}
+
+#[test]
+fn ends_the_statusline_with_a_single_newline() {
+    let session_json = include_str!("../initial-test-data/input.json");
+
+    let statusline = run_statusline(session_json);
+
+    assert_eq!(statusline.matches('\n').count(), 1);
+    assert!(statusline.ends_with('\n'));
 }
 
 #[test]
@@ -64,7 +74,6 @@ fn reads_git_state_from_the_session_directory() {
     let session_json = include_str!("../initial-test-data/input.json");
 
     let statusline = run_statusline(session_json);
-    let directory_line = statusline.lines().next().unwrap();
 
-    assert!(directory_line.contains('⎇'));
+    assert!(statusline.contains('⎇'));
 }

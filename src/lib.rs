@@ -70,44 +70,37 @@ const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
 pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
-    let statusline = match Session::parse(session_json) {
-        Some(session) => render_session(&session, git_status),
-        None => String::new(),
-    };
-
-    if statusline.is_empty() {
-        return render_lines(&[vec![segment(238, 231, "⚠ statusline".to_string())]]);
-    }
-
-    statusline
-}
-
-fn render_session(session: &Session, git_status: Option<&GitStatus>) -> String {
-    let lines = [
-        directory_line(session.current_directory(), git_status),
-        model_line(session),
-        context_line(session),
-    ];
-
-    render_lines(&lines)
-}
-
-fn render_lines(lines: &[Vec<Segment>]) -> String {
-    lines
-        .iter()
+    let segments = Session::parse(session_json)
+        .map(|session| session_segments(&session, git_status))
         .filter(|segments| !segments.is_empty())
-        .map(|segments| render_line(segments) + "\n")
-        .collect()
+        .unwrap_or_else(warning_segments);
+
+    render_line(&segments) + "\n"
 }
 
-fn directory_line(current_dir: Option<&str>, git_status: Option<&GitStatus>) -> Vec<Segment> {
+fn session_segments(session: &Session, git_status: Option<&GitStatus>) -> Vec<Segment> {
+    [
+        directory_segments(session.current_directory(), git_status),
+        model_segments(session),
+        context_segments(session),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn warning_segments() -> Vec<Segment> {
+    vec![segment(238, 231, "⚠ statusline".to_string())]
+}
+
+fn directory_segments(current_dir: Option<&str>, git_status: Option<&GitStatus>) -> Vec<Segment> {
     let directory = current_dir.map(|dir| segment(136, 231, directory_name(dir)));
     let git = git_status.map(|status| segment(238, 231, git_description(status)));
 
     [directory, git].into_iter().flatten().collect()
 }
 
-fn model_line(session: &Session) -> Vec<Segment> {
+fn model_segments(session: &Session) -> Vec<Segment> {
     let model = session
         .model_name()
         .map(|name| segment(237, 231, format!("✱ {}", name)));
@@ -119,7 +112,7 @@ fn model_line(session: &Session) -> Vec<Segment> {
     [model, tokens].into_iter().flatten().collect()
 }
 
-fn context_line(session: &Session) -> Vec<Segment> {
+fn context_segments(session: &Session) -> Vec<Segment> {
     match (session.total_input_tokens(), session.remaining_percentage()) {
         (Some(tokens), Some(remaining)) => vec![segment(
             240,
