@@ -125,8 +125,19 @@ fn git_description(git_status: &GitStatus) -> String {
     format!("⎇ {}{}", git_status.branch, dirty_marker)
 }
 
+const THOUSAND: u64 = 1_000;
+const MILLION: u64 = 1_000_000;
+
 fn abbreviate(tokens: u64) -> String {
-    format!("{:.1}K", tokens as f64 / 1000.0)
+    let scaled = |unit: u64| tokens as f64 / unit as f64;
+
+    if tokens < THOUSAND {
+        tokens.to_string()
+    } else if tokens < MILLION {
+        format!("{:.1}K", scaled(THOUSAND))
+    } else {
+        format!("{:.1}M", scaled(MILLION))
+    }
 }
 
 fn group_digits(tokens: u64) -> String {
@@ -141,4 +152,35 @@ fn group_digits(tokens: u64) -> String {
     }
 
     grouped
+}
+
+#[cfg(test)]
+mod abbreviate_tests {
+    use super::abbreviate;
+
+    #[test]
+    fn shows_counts_below_a_thousand_as_plain_digits() {
+        assert_eq!(abbreviate(0), "0");
+        assert_eq!(abbreviate(500), "500");
+        assert_eq!(abbreviate(999), "999");
+    }
+
+    #[test]
+    fn shows_thousands_with_one_decimal_place() {
+        assert_eq!(abbreviate(1_000), "1.0K");
+        assert_eq!(abbreviate(20_812), "20.8K");
+        assert_eq!(abbreviate(999_999), "1000.0K");
+    }
+
+    #[test]
+    fn shows_millions_with_one_decimal_place() {
+        assert_eq!(abbreviate(1_000_000), "1.0M");
+        assert_eq!(abbreviate(1_500_000), "1.5M");
+    }
+
+    #[test]
+    fn rounds_to_the_nearest_decimal_place() {
+        assert_eq!(abbreviate(20_850), "20.9K");
+        assert_eq!(abbreviate(20_999), "21.0K");
+    }
 }
