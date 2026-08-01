@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+pub mod git;
+
 pub struct GitStatus {
     pub branch: String,
     pub dirty: bool,
@@ -45,16 +47,13 @@ fn segment(background: u8, foreground: u8, text: String) -> Segment {
 const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
-pub fn render(session_json: &str, git_status: &GitStatus) -> String {
+pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
     let session: Session = serde_json::from_str(session_json).unwrap();
 
     let context_window = &session.context_window;
 
     let lines = [
-        vec![
-            segment(136, 231, directory_name(&session.workspace.current_dir)),
-            segment(238, 231, git_description(git_status)),
-        ],
+        directory_line(&session.workspace.current_dir, git_status),
         vec![
             segment(237, 231, format!("✱ {}", session.model.display_name)),
             segment(
@@ -81,6 +80,16 @@ pub fn render(session_json: &str, git_status: &GitStatus) -> String {
         .iter()
         .map(|segments| render_line(segments) + "\n")
         .collect()
+}
+
+fn directory_line(current_dir: &str, git_status: Option<&GitStatus>) -> Vec<Segment> {
+    let mut segments = vec![segment(136, 231, directory_name(current_dir))];
+
+    if let Some(git_status) = git_status {
+        segments.push(segment(238, 231, git_description(git_status)));
+    }
+
+    segments
 }
 
 fn render_line(segments: &[Segment]) -> String {
