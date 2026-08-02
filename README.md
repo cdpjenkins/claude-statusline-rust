@@ -28,6 +28,12 @@ Then point Claude Code at it in `~/.claude/settings.json`:
 `cargo install` copies the binary, so re-run it after changing the code.
 Statusline commands run per session, so open a new session to see the change.
 
+Flags go in the same string, so to record what Claude Code sends:
+
+```json
+"command": "claude-statusline-rust --save-input"
+```
+
 To see the output without Claude Code, pipe a session at it:
 
 ```sh
@@ -71,6 +77,28 @@ the whole line is replaced by a single `⚠ statusline` segment. Nothing is
 written to stderr, so to debug a statusline that looks wrong, pipe the JSON
 to the binary by hand.
 
+## Saving the input
+
+`--save-input` appends every session read on stdin to
+`~/claude-statusline-input.jsonl`, one record per line, before the line is
+rendered. Saving first means a session that breaks the renderer is on disk
+anyway, which is the case worth having a log for.
+
+It is off by default. A statusline runs on every prompt, so an always on log
+grows without anyone asking for it.
+
+Records are normalised so the file stays valid JSONL. A session that parses is
+re-serialised compactly, which collapses pretty printed JSON onto one line; a
+session that does not parse is saved with its newlines stripped, since
+malformed input is exactly what is worth keeping. Empty stdin writes nothing.
+
+Failures are silent, for the same reason the renderer never panics. An
+unwritable home directory, a full disk, an unset `$HOME` — the line still
+renders and the record is dropped. Opening in append mode means concurrent
+sessions add their own lines rather than truncating each other's.
+
+Nothing rotates or prunes the file. It grows until it is deleted by hand.
+
 ## Line format
 
 Segments are separated by `U+E0B0`, the powerline right arrow, which needs a
@@ -105,6 +133,11 @@ renders `initial-test-data/input.json` and compares it byte for byte with
 `tests/binary_test.rs` runs the built binary over stdin, and
 `tests/git_adapter_test.rs` builds throwaway repositories in the temporary
 directory to cover clean, dirty, branched and detached states.
+`tests/args_test.rs` covers flag parsing and `tests/input_log_test.rs` covers
+record normalisation and appending, both against temporary paths.
+
+The binary tests that cover `--save-input` point `$HOME` at a temporary
+directory, so running them never writes to the real one.
 
 Git state is injected rather than looked up during rendering: `render` takes
 an `Option<&GitStatus>` so tests pass a fake, and `main` supplies the real

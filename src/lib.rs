@@ -1,6 +1,8 @@
 use serde::Deserialize;
 
+pub mod args;
 pub mod git;
+pub mod input_log;
 
 pub struct GitStatus {
     pub branch: String,
