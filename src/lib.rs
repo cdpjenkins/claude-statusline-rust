@@ -97,7 +97,15 @@ pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
         .filter(|segments| !segments.is_empty())
         .unwrap_or_else(warning_segments);
 
+    let segments: Vec<Segment> = std::iter::once(marker_segment())
+        .chain(segments)
+        .collect();
+
     render_line(&segments) + "\n"
+}
+
+fn marker_segment() -> Segment {
+    segment(202, 231, "🦀".to_string())
 }
 
 fn session_segments(session: &Session, git_status: Option<&GitStatus>) -> Vec<Segment> {

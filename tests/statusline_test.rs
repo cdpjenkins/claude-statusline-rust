@@ -14,6 +14,37 @@ fn renders_the_statusline_for_a_session() {
 }
 
 #[test]
+fn marks_the_line_as_rendered_by_the_rust_statusline() {
+    let session_json = r#"{"workspace":{"current_dir":"/x/project"}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains('🦀'));
+}
+
+#[test]
+fn puts_the_rust_marker_before_every_other_segment() {
+    let session_json = r#"{"workspace":{"current_dir":"/x/project"},
+        "model":{"display_name":"Opus 5"}}"#;
+
+    let statusline = render(session_json, None);
+
+    let marker = statusline.find('🦀').unwrap();
+    let directory = statusline.find("project").unwrap();
+
+    assert!(marker < directory);
+}
+
+#[test]
+fn colours_the_rust_marker_orange() {
+    let session_json = r#"{"workspace":{"current_dir":"/x/project"}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("\x1b[48;5;202m\x1b[38;5;231m 🦀 "));
+}
+
+#[test]
 fn omits_the_model_segment_when_the_model_is_missing() {
     let session_json = r#"{"workspace":{"current_dir":"/x/project"}}"#;
 
@@ -54,6 +85,32 @@ fn warns_when_the_session_cannot_be_parsed() {
 fn warns_when_the_session_has_nothing_to_show() {
     let statusline = render("{}", None);
 
+    assert!(statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn marks_the_warning_line_as_rendered_by_the_rust_statusline() {
+    let statusline = render("not json", None);
+
+    assert!(statusline.contains('🦀'));
+    assert!(statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn puts_the_rust_marker_before_the_warning() {
+    let statusline = render("not json", None);
+
+    let marker = statusline.find('🦀').unwrap();
+    let warning = statusline.find('⚠').unwrap();
+
+    assert!(marker < warning);
+}
+
+#[test]
+fn marks_an_empty_session_as_rendered_by_the_rust_statusline() {
+    let statusline = render("{}", None);
+
+    assert!(statusline.contains('🦀'));
     assert!(statusline.contains("⚠ statusline"));
 }
 
