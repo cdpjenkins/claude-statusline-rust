@@ -14,6 +14,7 @@ pub struct Session {
     model: Option<Model>,
     workspace: Option<Workspace>,
     context_window: Option<ContextWindow>,
+    rate_limits: Option<RateLimits>,
 }
 
 #[derive(Deserialize)]
@@ -30,6 +31,17 @@ struct Workspace {
 struct ContextWindow {
     total_input_tokens: Option<u64>,
     remaining_percentage: Option<u8>,
+}
+
+#[derive(Deserialize)]
+struct RateLimits {
+    five_hour: Option<RateLimit>,
+    seven_day: Option<RateLimit>,
+}
+
+#[derive(Deserialize)]
+struct RateLimit {
+    used_percentage: Option<u8>,
 }
 
 impl Session {
@@ -51,6 +63,14 @@ impl Session {
 
     fn remaining_percentage(&self) -> Option<u8> {
         self.context_window.as_ref()?.remaining_percentage
+    }
+
+    fn five_hour_used(&self) -> Option<u8> {
+        self.rate_limits.as_ref()?.five_hour.as_ref()?.used_percentage
+    }
+
+    fn seven_day_used(&self) -> Option<u8> {
+        self.rate_limits.as_ref()?.seven_day.as_ref()?.used_percentage
     }
 }
 
@@ -85,6 +105,7 @@ fn session_segments(session: &Session, git_status: Option<&GitStatus>) -> Vec<Se
         directory_segments(session.current_directory(), git_status),
         model_segments(session),
         context_segments(session),
+        rate_limit_segments(session),
     ]
     .into_iter()
     .flatten()
@@ -119,6 +140,17 @@ fn context_segments(session: &Session) -> Vec<Segment> {
         )],
         _ => Vec::new(),
     }
+}
+
+fn rate_limit_segments(session: &Session) -> Vec<Segment> {
+    let five_hour = session
+        .five_hour_used()
+        .map(|used| segment(60, 231, format!("◷ {}%", used)));
+    let seven_day = session
+        .seven_day_used()
+        .map(|used| segment(66, 231, format!("▦ {}%", used)));
+
+    [five_hour, seven_day].into_iter().flatten().collect()
 }
 
 fn render_line(segments: &[Segment]) -> String {

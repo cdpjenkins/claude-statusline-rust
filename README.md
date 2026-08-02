@@ -5,7 +5,7 @@ session JSON that Claude Code writes to stdin and prints a single powerline
 style line to stdout.
 
 ```
- claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ ◔ 20,812 (98%) ▶
+ claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ ◔ 20,812 (98%) ▶ ◷ 33% ▶ ▦ 4% ▶
 ```
 
 ## Installing
@@ -48,6 +48,8 @@ claude-statusline-rust < initial-test-data/input.json
 | git       | ` ⎇ main ● `       | the directory is inside a git repository                         |
 | model     | ` ✱ Opus 5 `      | `model.display_name` is present                                  |
 | context   | ` ◔ 20,812 (98%) ` | both `total_input_tokens` and `remaining_percentage` are present |
+| five hour | ` ◷ 33% `          | `rate_limits.five_hour.used_percentage` is present               |
+| seven day | ` ▦ 4% `           | `rate_limits.seven_day.used_percentage` is present               |
 
 **directory** — the last component of `workspace.current_dir`, so a session in
 `/Users/you/code/my-project` shows `my-project`.
@@ -62,6 +64,23 @@ directory rather than from stdin, since Claude Code does not report it.
 **context** — `context_window.total_input_tokens` grouped with commas,
 followed by `context_window.remaining_percentage`: how much of the context
 window is still free.
+
+**five hour** — `rate_limits.five_hour.used_percentage`, how much of the
+rolling five hour limit has been spent. Counts up, unlike the context segment
+beside it, which counts down.
+
+**seven day** — `rate_limits.seven_day.used_percentage`, the same for the
+seven day window.
+
+Both are shown whenever the session reports them, including at `0%`. Zero is a
+value worth seeing rather than an absence, and hiding low numbers would make
+the width of the line vary from session to session. The colour is fixed: the
+percentage already says how close the limit is, and a background shifting
+underneath a changing number is harder to read, not easier.
+
+`resets_at` sits beside each percentage in the session JSON and would allow a
+`◷ 33% (2h left)`, but that needs time formatting and a clock, so the bare
+percentage is what is shown.
 
 ## When something is missing
 
@@ -114,12 +133,19 @@ segment's background. Colours are 256 colour ANSI codes:
 | git | 238 | 231 |
 | model | 237 | 231 |
 | context | 240 | 251 |
+| five hour | 60 | 231 |
+| seven day | 66 | 231 |
 | warning | 238 | 231 |
 
-The line runs to about 64 columns for this repository on `main`. The model and
-context segments cost 28 columns between them whatever the session, and the
-directory and branch names make up the rest, so a long branch name is what
-pushes it wide enough for a narrow terminal to wrap it.
+60 and 66 are a slate blue and a slate teal. They are near neighbours, so the
+two rate limit segments read as one group, and far enough from the 237–240
+greys behind model and context for the boundary between them to be visible.
+
+The line runs to 79 columns for this repository on `main`. The model, context
+and rate limit segments cost 43 columns between them whatever the session, and
+the directory and branch names make up the rest. That fits an 80 column
+terminal with a column to spare, so a long branch name, or a directory longer
+than this one, is what wraps it.
 
 ## Development
 

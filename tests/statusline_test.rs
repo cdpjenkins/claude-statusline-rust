@@ -58,6 +58,84 @@ fn warns_when_the_session_has_nothing_to_show() {
 }
 
 #[test]
+fn renders_both_rate_limit_windows() {
+    let session_json = r#"{"rate_limits":{"five_hour":{"used_percentage":33},
+        "seven_day":{"used_percentage":4}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("◷ 33%"));
+    assert!(statusline.contains("▦ 4%"));
+}
+
+#[test]
+fn omits_the_rate_limits_when_the_session_does_not_report_them() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(!statusline.contains('◷'));
+    assert!(!statusline.contains('▦'));
+}
+
+#[test]
+fn omits_the_rate_limits_when_the_windows_are_missing() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},"rate_limits":{}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(!statusline.contains('◷'));
+    assert!(!statusline.contains('▦'));
+}
+
+#[test]
+fn renders_only_the_window_the_session_reports() {
+    let session_json = r#"{"rate_limits":{"five_hour":{"used_percentage":33}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("◷ 33%"));
+    assert!(!statusline.contains('▦'));
+}
+
+#[test]
+fn renders_an_unused_window_as_zero_rather_than_omitting_it() {
+    let session_json = r#"{"rate_limits":{"five_hour":{"used_percentage":0},
+        "seven_day":{"used_percentage":0}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("◷ 0%"));
+    assert!(statusline.contains("▦ 0%"));
+}
+
+#[test]
+fn orders_the_rate_limits_after_the_context_and_shortest_window_first() {
+    let session_json = r#"{"context_window":{"total_input_tokens":20812,"remaining_percentage":98},
+        "rate_limits":{"five_hour":{"used_percentage":33},"seven_day":{"used_percentage":4}}}"#;
+
+    let statusline = render(session_json, None);
+
+    let context = statusline.find("20,812").unwrap();
+    let five_hour = statusline.find("◷ 33%").unwrap();
+    let seven_day = statusline.find("▦ 4%").unwrap();
+
+    assert!(context < five_hour);
+    assert!(five_hour < seven_day);
+}
+
+#[test]
+fn colours_each_rate_limit_window_distinctly() {
+    let session_json = r#"{"rate_limits":{"five_hour":{"used_percentage":33},
+        "seven_day":{"used_percentage":4}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("\x1b[48;5;60m\x1b[38;5;231m ◷ 33% "));
+    assert!(statusline.contains("\x1b[48;5;66m\x1b[38;5;231m ▦ 4% "));
+}
+
+#[test]
 fn omits_the_git_segment_outside_a_repository() {
     let session_json = include_str!("../initial-test-data/input.json");
 
