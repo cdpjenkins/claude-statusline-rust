@@ -8,8 +8,7 @@ const SAVED_INPUT_FILE: &str = "claude-statusline-input.jsonl";
 fn main() {
     let arguments = Arguments::parse(std::env::args());
 
-    let mut session_json = String::new();
-    let _ = std::io::stdin().read_to_string(&mut session_json);
+    let session_json = read_session_from_stdin();
 
     if arguments.save_input {
         if let Some(path) = saved_input_path() {
@@ -23,6 +22,12 @@ fn main() {
     let git_status = current_dir.and_then(|dir| git::read(Path::new(&dir)));
 
     print!("{}", render(&session_json, git_status.as_ref()));
+}
+
+fn read_session_from_stdin() -> String {
+    let mut session_json = String::new();
+    let _ = std::io::stdin().read_to_string(&mut session_json);
+    session_json
 }
 
 fn saved_input_path() -> Option<PathBuf> {
