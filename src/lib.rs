@@ -1,4 +1,6 @@
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 
 pub mod args;
 pub mod git;
@@ -11,9 +13,13 @@ pub struct GitStatus {
 
 #[derive(Deserialize)]
 pub struct Session {
+    #[serde(default, deserialize_with = "lenient")]
     model: Option<Model>,
+    #[serde(default, deserialize_with = "lenient")]
     workspace: Option<Workspace>,
+    #[serde(default, deserialize_with = "lenient")]
     context_window: Option<ContextWindow>,
+    #[serde(default, deserialize_with = "lenient")]
     rate_limits: Option<RateLimits>,
 }
 
@@ -29,7 +35,9 @@ struct Workspace {
 
 #[derive(Deserialize)]
 struct ContextWindow {
+    #[serde(default, deserialize_with = "lenient_number")]
     total_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "lenient_number")]
     remaining_percentage: Option<u8>,
 }
 
@@ -41,7 +49,36 @@ struct RateLimits {
 
 #[derive(Deserialize)]
 struct RateLimit {
+    #[serde(default, deserialize_with = "lenient_number")]
     used_percentage: Option<u8>,
+}
+
+fn lenient<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    let value = Value::deserialize(deserializer)?;
+
+    Ok(serde_json::from_value(value).ok())
+}
+
+fn lenient_number<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: TryFrom<u64>,
+{
+    let value = Value::deserialize(deserializer)?;
+
+    Ok(whole_number(&value).and_then(|number| T::try_from(number).ok()))
+}
+
+fn whole_number(value: &Value) -> Option<u64> {
+    value
+        .as_f64()
+        .map(f64::round)
+        .filter(|number| *number >= 0.0 && *number < u64::MAX as f64)
+        .map(|number| number as u64)
 }
 
 impl Session {

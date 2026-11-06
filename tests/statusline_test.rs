@@ -193,6 +193,154 @@ fn colours_each_rate_limit_window_distinctly() {
 }
 
 #[test]
+fn keeps_every_other_segment_when_a_percentage_is_not_a_number() {
+    let session_json = r#"{"workspace":{"current_dir":"/x/project"},
+        "model":{"display_name":"Opus 5"},
+        "rate_limits":{"five_hour":{"used_percentage":"lots"}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("project"));
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn keeps_every_other_segment_when_a_window_reports_no_percentage() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},
+        "rate_limits":{"five_hour":{}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains('◷'));
+    assert!(!statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn renders_the_context_percentage_when_it_arrives_as_a_decimal() {
+    let session_json = r#"{"context_window":{"total_input_tokens":20812,
+        "remaining_percentage":98.4}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("◔ 20,812 (98%)"));
+}
+
+#[test]
+fn keeps_every_other_segment_when_a_token_count_is_not_a_number() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},
+        "context_window":{"total_input_tokens":"lots","remaining_percentage":98}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains('◔'));
+    assert!(!statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn renders_a_rate_limit_percentage_when_it_arrives_as_a_decimal() {
+    let session_json = r#"{"rate_limits":{"five_hour":{"used_percentage":33.4}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("◷ 33%"));
+}
+
+const SECTIONS: [(&str, &str, &str); 4] = [
+    ("model", r#"{"display_name":"Opus 5"}"#, "Opus 5"),
+    ("workspace", r#"{"current_dir":"/x/project"}"#, "project"),
+    (
+        "context_window",
+        r#"{"total_input_tokens":20812,"remaining_percentage":98}"#,
+        "20,812",
+    ),
+    (
+        "rate_limits",
+        r#"{"five_hour":{"used_percentage":33}}"#,
+        "33%",
+    ),
+];
+
+fn session_with_broken(broken: &str) -> String {
+    let sections: Vec<String> = SECTIONS
+        .iter()
+        .map(|(name, value, _)| {
+            let value = if *name == broken {
+                r#""unexpected""#
+            } else {
+                value
+            };
+
+            format!(r#""{}":{}"#, name, value)
+        })
+        .collect();
+
+    format!("{{{}}}", sections.join(","))
+}
+
+#[test]
+fn keeps_the_other_sections_when_one_is_not_an_object() {
+    for (broken, _, _) in SECTIONS {
+        let statusline = render(&session_with_broken(broken), None);
+
+        assert!(!statusline.contains("⚠ statusline"), "broken: {}", broken);
+        for (name, _, marker) in SECTIONS {
+            if name != broken {
+                assert!(statusline.contains(marker), "{} lost {}", broken, marker);
+            }
+        }
+    }
+}
+
+#[test]
+fn costs_only_its_own_segment_when_a_name_is_not_a_string() {
+    let session_json = r#"{"model":{"display_name":42},
+        "workspace":{"current_dir":"/x/project"}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("project"));
+    assert!(!statusline.contains('✱'));
+    assert!(!statusline.contains("⚠ statusline"));
+}
+
+#[test]
+fn drops_a_negative_percentage_rather_than_showing_it_as_zero() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},
+        "rate_limits":{"five_hour":{"used_percentage":-5}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains('◷'));
+}
+
+#[test]
+fn drops_a_token_count_too_large_to_represent() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},
+        "context_window":{"total_input_tokens":1e300,"remaining_percentage":98}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains('◔'));
+}
+
+#[test]
+fn keeps_every_other_segment_when_a_percentage_exceeds_a_byte() {
+    let session_json = r#"{"model":{"display_name":"Opus 5"},
+        "rate_limits":{"five_hour":{"used_percentage":300}}}"#;
+
+    let statusline = render(session_json, None);
+
+    assert!(statusline.contains("Opus 5"));
+    assert!(!statusline.contains('◷'));
+    assert!(!statusline.contains("⚠ statusline"));
+}
+
+#[test]
 fn omits_the_git_segment_outside_a_repository() {
     let session_json = include_str!("../initial-test-data/input.json");
 

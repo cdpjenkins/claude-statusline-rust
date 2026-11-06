@@ -98,6 +98,18 @@ Every field is optional and each segment appears only when the values behind
 it are present. A session without `context_window` still shows the directory,
 git and model segments — the rest of the line closes up around the gap.
 
+A field that is present but the wrong shape costs only what depends on it. A
+`model` that arrives as a string, or a `used_percentage` that arrives as
+`"lots"`, drops that one segment rather than the whole line. The schema
+belongs to Claude Code rather than to this program, so a change to it should
+cost one segment, not all of them.
+
+Counts and percentages that arrive as decimals are rounded, so a
+`remaining_percentage` of `98.4` still reads `98%`. A value that cannot be
+represented — negative, or larger than the field holds — is dropped instead,
+since a segment that is missing is easier to explain than one showing a
+number that was never sent.
+
 When the session cannot be parsed at all, or carries nothing worth showing,
 the whole line is replaced by a single `⚠ statusline` segment. Nothing is
 written to stderr, so to debug a statusline that looks wrong, pipe the JSON
