@@ -91,6 +91,14 @@ Each percentage is followed by how long until that window resets, worked out
 from `resets_at` (Unix seconds) and the current time: the two largest units,
 so `2h14m`, `45m` or `3d2h`, with a second unit of zero left off (`2h`, not
 `2h0m`). Part minutes round up, so a reset still to come never reads `0m`.
+Past that, the second unit is cut off rather than rounded, so `3d2h59m` reads
+`3d2h`.
+
+The countdown makes the width of the line vary, which the percentages were
+kept steady to avoid: `2h14m` becomes `45m`, and the countdown goes altogether
+once the reset passes. That is the price of the one number that says whether
+a high percentage matters, since 90% with ten minutes to go is not the 90%
+with four hours left. The variation is at most six columns per segment.
 
 The countdown is optional in the same way the segments are. When `resets_at`
 is missing or not a number, only the percentage is shown. When it has already
@@ -177,11 +185,16 @@ segment's background. Colours are 256 colour ANSI codes:
 two rate limit segments read as one group, and far enough from the 237–240
 greys behind model and context for the boundary between them to be visible.
 
-The line runs to 84 columns for this repository on `main`, so it no longer
-fits an 80 column terminal: the marker costs four of them, and the line was
-already at 79. The marker, model, context and rate limit segments cost 44
-columns between them whatever the session, and the directory and branch names
-make up the rest.
+The line runs to 95 columns for this repository on `main` with the countdowns
+in the example, so it does not fit an 80 column terminal. Without the
+countdowns it is 84: the marker costs four columns, and the line was already
+at 79. The marker, model, context and rate limit percentages cost 44 columns
+between them whatever the session, and the directory and branch names make up
+the rest.
+
+The countdowns add 6 to 12 columns between them: 11 for `2h14m` and `3d2h`,
+12 at the widest (`4h59m` and `6d23h`), 6 at the narrowest (`1m` twice), and
+none when the session reports no reset time or one already passed.
 
 The crab is one character but two columns wide, so counting characters
 understates the line by one:
@@ -194,6 +207,13 @@ cargo run --quiet < initial-test-data/input.json |
 reports 79 for the session in `initial-test-data`, which is an 80 column line.
 That directory name is four characters shorter than this repository's, which
 is where the difference from 84 comes from.
+
+That session shows no countdowns. Its `resets_at` times were recorded in
+August 2026 and have passed, so the countdowns are left off as stale. The
+golden test still covers them, because it renders the session at a fixed time
+2h14m before the five hour reset rather than at the real one. To see the
+countdowns by hand, pipe in a session saved with `--save-input` from a
+current session.
 
 ## Development
 
