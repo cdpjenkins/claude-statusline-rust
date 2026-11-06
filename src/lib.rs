@@ -167,7 +167,9 @@ fn warning_segments() -> Vec<Segment> {
 }
 
 fn directory_segments(current_dir: Option<&str>, git_status: Option<&GitStatus>) -> Vec<Segment> {
-    let directory = current_dir.map(|dir| segment(136, 231, directory_name(dir)));
+    let directory = current_dir
+        .and_then(directory_name)
+        .map(|name| segment(136, 231, name));
     let git = git_status.map(|status| segment(238, 231, git_description(status)));
 
     [directory, git].into_iter().flatten().collect()
@@ -284,12 +286,14 @@ fn foreground(colour: u8) -> String {
     format!("\x1b[38;5;{}m", colour)
 }
 
-fn directory_name(current_dir: &str) -> String {
+/// The last non-empty component, so `/x/project/` still names `project`.
+/// `/` and `""` have no name, and the segment is dropped rather than drawn
+/// empty.
+fn directory_name(current_dir: &str) -> Option<String> {
     current_dir
         .rsplit('/')
-        .next()
-        .unwrap_or(current_dir)
-        .to_string()
+        .find(|component| !component.is_empty())
+        .map(str::to_string)
 }
 
 fn git_description(git_status: &GitStatus) -> String {

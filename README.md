@@ -59,7 +59,9 @@ warning line: a marker missing from the failure case could not answer the
 question it exists to answer.
 
 **directory** — the last component of `workspace.current_dir`, so a session in
-`/Users/you/code/my-project` shows `my-project`.
+`/Users/you/code/my-project` shows `my-project`. A trailing slash is ignored,
+and a path with no name in it, such as `/`, drops the segment rather than
+drawing it empty.
 
 **git** — the current branch, or the seven character commit when `HEAD` is
 detached. A `●` follows the branch when the working tree has uncommitted

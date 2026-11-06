@@ -408,3 +408,35 @@ fn drops_the_rate_limit_segment_when_only_the_reset_time_is_present() {
 
     assert!(!statusline.contains('◷'));
 }
+
+#[test]
+fn names_the_directory_when_the_path_ends_in_a_slash() {
+    let session_json = r#"{"workspace":{"current_dir":"/x/project/"}}"#;
+
+    let statusline = render(session_json, None, now());
+
+    assert!(statusline.contains("\x1b[48;5;136m\x1b[38;5;231m project "));
+}
+
+#[test]
+fn omits_the_directory_segment_when_the_path_has_no_name() {
+    for current_dir in ["/", "", "//"] {
+        let session_json = format!(
+            r#"{{"workspace":{{"current_dir":"{}"}},"model":{{"display_name":"Opus 5"}}}}"#,
+            current_dir
+        );
+
+        let statusline = render(&session_json, None, now());
+
+        assert!(
+            statusline.contains("Opus 5"),
+            "current_dir: {:?}",
+            current_dir
+        );
+        assert!(
+            !statusline.contains("\x1b[48;5;136m\x1b[38;5;231m"),
+            "current_dir: {:?}",
+            current_dir
+        );
+    }
+}
