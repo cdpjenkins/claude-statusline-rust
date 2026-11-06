@@ -5,7 +5,7 @@ session JSON that Claude Code writes to stdin and prints a single powerline
 style line to stdout.
 
 ```
- 🦀 ▶ claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ ◔ 20,812 (98%) ▶ ◷ 33% ▶ ▦ 4% ▶
+ 🦀 ▶ claude-statusline-rust ▶ ⎇ main ● ▶ ✱ Opus 5 ▶ ◔ 20,812 (98%) ▶ ◷ 33% 2h14m ▶ ▦ 4% 3d2h ▶
 ```
 
 ## Installing
@@ -49,8 +49,8 @@ claude-statusline-rust < initial-test-data/input.json
 | git       | ` ⎇ main ● `       | the directory is inside a git repository                         |
 | model     | ` ✱ Opus 5 `      | `model.display_name` is present                                  |
 | context   | ` ◔ 20,812 (98%) ` | both `total_input_tokens` and `remaining_percentage` are present |
-| five hour | ` ◷ 33% `          | `rate_limits.five_hour.used_percentage` is present               |
-| seven day | ` ▦ 4% `           | `rate_limits.seven_day.used_percentage` is present               |
+| five hour | ` ◷ 33% 2h14m `    | `rate_limits.five_hour.used_percentage` is present               |
+| seven day | ` ▦ 4% 3d2h `      | `rate_limits.seven_day.used_percentage` is present               |
 
 **marker** — a constant. It says this Rust statusline is the one running,
 which is worth knowing when several are installed or one has just been
@@ -85,9 +85,19 @@ the width of the line vary from session to session. The colour is fixed: the
 percentage already says how close the limit is, and a background shifting
 underneath a changing number is harder to read, not easier.
 
-`resets_at` sits beside each percentage in the session JSON and would allow a
-`◷ 33% (2h left)`, but that needs time formatting and a clock, so the bare
-percentage is what is shown.
+Each percentage is followed by how long until that window resets, worked out
+from `resets_at` (Unix seconds) and the current time: the two largest units,
+so `2h14m`, `45m` or `3d2h`, with a second unit of zero left off (`2h`, not
+`2h0m`). Part minutes round up, so a reset still to come never reads `0m`.
+
+The countdown is optional in the same way the segments are. When `resets_at`
+is missing or not a number, only the percentage is shown. When it has already
+passed, the session data is stale, and the countdown is left off rather than
+shown as zero: a window that has reset will report a new time on the next
+render. A window with a `resets_at` but no `used_percentage` shows nothing.
+
+The current time is passed into `render` by `main`, like the git status, so
+the renderer stays pure and the tests fix the clock.
 
 ## When something is missing
 

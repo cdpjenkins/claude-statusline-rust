@@ -2,6 +2,7 @@ use claude_statusline_rust::args::Arguments;
 use claude_statusline_rust::{git, input_log, render, Session};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 const SAVED_INPUT_FILE: &str = "claude-statusline-input.jsonl";
 
@@ -21,7 +22,10 @@ fn main() {
 
     let git_status = current_dir.and_then(|dir| git::read(Path::new(&dir)));
 
-    print!("{}", render(&session_json, git_status.as_ref()));
+    print!(
+        "{}",
+        render(&session_json, git_status.as_ref(), SystemTime::now())
+    );
 }
 
 fn read_session_from_stdin() -> String {

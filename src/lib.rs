@@ -1,6 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod args;
 pub mod git;
@@ -51,6 +52,8 @@ struct RateLimits {
 struct RateLimit {
     #[serde(default, deserialize_with = "lenient_number")]
     used_percentage: Option<u8>,
+    #[serde(default, deserialize_with = "lenient_number")]
+    resets_at: Option<u64>,
 }
 
 fn lenient<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -102,12 +105,12 @@ impl Session {
         self.context_window.as_ref()?.remaining_percentage
     }
 
-    fn five_hour_used(&self) -> Option<u8> {
-        self.rate_limits.as_ref()?.five_hour.as_ref()?.used_percentage
+    fn five_hour(&self) -> Option<&RateLimit> {
+        self.rate_limits.as_ref()?.five_hour.as_ref()
     }
 
-    fn seven_day_used(&self) -> Option<u8> {
-        self.rate_limits.as_ref()?.seven_day.as_ref()?.used_percentage
+    fn seven_day(&self) -> Option<&RateLimit> {
+        self.rate_limits.as_ref()?.seven_day.as_ref()
     }
 }
 
@@ -128,15 +131,13 @@ fn segment(background: u8, foreground: u8, text: String) -> Segment {
 const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
-pub fn render(session_json: &str, git_status: Option<&GitStatus>) -> String {
+pub fn render(session_json: &str, git_status: Option<&GitStatus>, now: SystemTime) -> String {
     let segments = Session::parse(session_json)
-        .map(|session| session_segments(&session, git_status))
+        .map(|session| session_segments(&session, git_status, now))
         .filter(|segments| !segments.is_empty())
         .unwrap_or_else(warning_segments);
 
-    let segments: Vec<Segment> = std::iter::once(marker_segment())
-        .chain(segments)
-        .collect();
+    let segments: Vec<Segment> = std::iter::once(marker_segment()).chain(segments).collect();
 
     render_line(&segments) + "\n"
 }
@@ -145,12 +146,16 @@ fn marker_segment() -> Segment {
     segment(202, 231, "🦀".to_string())
 }
 
-fn session_segments(session: &Session, git_status: Option<&GitStatus>) -> Vec<Segment> {
+fn session_segments(
+    session: &Session,
+    git_status: Option<&GitStatus>,
+    now: SystemTime,
+) -> Vec<Segment> {
     [
         directory_segments(session.current_directory(), git_status),
         model_segments(session),
         context_segments(session),
-        rate_limit_segments(session),
+        rate_limit_segments(session, now),
     ]
     .into_iter()
     .flatten()
@@ -187,15 +192,63 @@ fn context_segments(session: &Session) -> Vec<Segment> {
     }
 }
 
-fn rate_limit_segments(session: &Session) -> Vec<Segment> {
+fn rate_limit_segments(session: &Session, now: SystemTime) -> Vec<Segment> {
+    let now = seconds_since_epoch(now);
     let five_hour = session
-        .five_hour_used()
-        .map(|used| segment(60, 231, format!("◷ {}%", used)));
+        .five_hour()
+        .and_then(|limit| rate_limit_text('◷', limit, now))
+        .map(|text| segment(60, 231, text));
     let seven_day = session
-        .seven_day_used()
-        .map(|used| segment(66, 231, format!("▦ {}%", used)));
+        .seven_day()
+        .and_then(|limit| rate_limit_text('▦', limit, now))
+        .map(|text| segment(66, 231, text));
 
     [five_hour, seven_day].into_iter().flatten().collect()
+}
+
+fn rate_limit_text(symbol: char, limit: &RateLimit, now: u64) -> Option<String> {
+    let used = limit.used_percentage?;
+    let countdown = limit
+        .resets_at
+        .and_then(|resets_at| resets_at.checked_sub(now))
+        .filter(|remaining| *remaining > 0)
+        .map(|remaining| format!(" {}", countdown(remaining)))
+        .unwrap_or_default();
+
+    Some(format!("{} {}%{}", symbol, used, countdown))
+}
+
+fn seconds_since_epoch(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
+const SECONDS_PER_MINUTE: u64 = 60;
+const MINUTES_PER_HOUR: u64 = 60;
+const MINUTES_PER_DAY: u64 = 24 * MINUTES_PER_HOUR;
+
+/// The two largest non-zero units of a wait, rounded up to the minute so a
+/// reset still in the future never reads `0m`.
+fn countdown(seconds: u64) -> String {
+    let minutes = seconds.div_ceil(SECONDS_PER_MINUTE);
+    let days = minutes / MINUTES_PER_DAY;
+    let hours = minutes % MINUTES_PER_DAY / MINUTES_PER_HOUR;
+    let minutes = minutes % MINUTES_PER_HOUR;
+
+    let units = if days > 0 {
+        [(days, 'd'), (hours, 'h')]
+    } else if hours > 0 {
+        [(hours, 'h'), (minutes, 'm')]
+    } else {
+        [(minutes, 'm'), (0, 'm')]
+    };
+
+    units
+        .iter()
+        .filter(|(amount, _)| *amount > 0)
+        .map(|(amount, unit)| format!("{}{}", amount, unit))
+        .collect()
 }
 
 fn render_line(segments: &[Segment]) -> String {
@@ -232,7 +285,11 @@ fn foreground(colour: u8) -> String {
 }
 
 fn directory_name(current_dir: &str) -> String {
-    current_dir.rsplit('/').next().unwrap_or(current_dir).to_string()
+    current_dir
+        .rsplit('/')
+        .next()
+        .unwrap_or(current_dir)
+        .to_string()
 }
 
 fn git_description(git_status: &GitStatus) -> String {
@@ -252,6 +309,43 @@ fn group_digits(tokens: u64) -> String {
         .collect();
 
     groups.join(",")
+}
+
+#[cfg(test)]
+mod countdown_tests {
+    use super::countdown;
+
+    #[test]
+    fn shows_minutes_under_an_hour() {
+        assert_eq!(countdown(45 * 60), "45m");
+    }
+
+    #[test]
+    fn rounds_a_part_minute_up_so_it_never_reads_zero() {
+        assert_eq!(countdown(1), "1m");
+        assert_eq!(countdown(14 * 60 + 1), "15m");
+    }
+
+    #[test]
+    fn shows_hours_and_minutes_under_a_day() {
+        assert_eq!(countdown(2 * 3600 + 14 * 60), "2h14m");
+    }
+
+    #[test]
+    fn shows_days_and_hours_from_a_day_up() {
+        assert_eq!(countdown(3 * 86400 + 4 * 3600 + 59 * 60), "3d4h");
+    }
+
+    #[test]
+    fn drops_a_second_unit_that_is_zero() {
+        assert_eq!(countdown(2 * 3600), "2h");
+        assert_eq!(countdown(3 * 86400), "3d");
+    }
+
+    #[test]
+    fn carries_rounding_into_the_larger_unit() {
+        assert_eq!(countdown(3600 - 1), "1h");
+    }
 }
 
 #[cfg(test)]
