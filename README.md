@@ -143,7 +143,9 @@ malformed input is exactly what is worth keeping. Empty stdin writes nothing.
 Failures are silent, for the same reason the renderer never panics. An
 unwritable home directory, a full disk, an unset `$HOME` — the line still
 renders and the record is dropped. Opening in append mode means concurrent
-sessions add their own lines rather than truncating each other's.
+sessions add their own lines rather than truncating each other's, and each
+record goes out with its newline in a single write, so another session's
+record cannot land in the middle of a line.
 
 Nothing rotates or prunes the file. It grows until it is deleted by hand.
 

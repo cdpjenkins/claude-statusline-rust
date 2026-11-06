@@ -8,11 +8,14 @@ pub fn append(path: &Path, session_json: &str) {
         return;
     };
 
+    // One write_all, not writeln!: O_APPEND keeps a single write whole
+    // against other sessions, but writeln! writes the record and its newline
+    // separately, and another session's record can land between them.
     let _ = OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
-        .and_then(|mut log| writeln!(log, "{}", record));
+        .and_then(|mut log| log.write_all(format!("{}\n", record).as_bytes()));
 }
 
 pub fn record_line(session_json: &str) -> Option<String> {

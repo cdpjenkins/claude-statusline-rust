@@ -158,3 +158,32 @@ fn does_not_panic_when_the_log_cannot_be_written() {
 
     append(unwritable, r#"{"a":1}"#);
 }
+
+#[test]
+fn keeps_every_record_whole_when_sessions_append_at_once() {
+    const WRITERS: usize = 8;
+    const RECORDS_PER_WRITER: usize = 400;
+
+    let log = TemporaryLog::new("concurrent");
+
+    std::thread::scope(|scope| {
+        for writer in 0..WRITERS {
+            let path = log.path();
+            scope.spawn(move || {
+                for record in 0..RECORDS_PER_WRITER {
+                    let session_json = format!(r#"{{"writer":{},"record":{}}}"#, writer, record);
+                    append(path, &session_json);
+                }
+            });
+        }
+    });
+
+    let lines = log.lines();
+    let whole = lines
+        .iter()
+        .filter(|line| serde_json::from_str::<serde_json::Value>(line).is_ok())
+        .count();
+
+    assert_eq!(lines.len(), WRITERS * RECORDS_PER_WRITER);
+    assert_eq!(whole, lines.len(), "some records were split");
+}
