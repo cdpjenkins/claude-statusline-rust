@@ -219,7 +219,15 @@ current session.
 
 ```sh
 cargo test
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
 ```
+
+CI runs the same three on every push to `main` and every pull request
+(`.github/workflows/ci.yml`). Tests run on Linux and macOS, since macOS is
+where the statusline is used and Linux catches anything that only works
+there by accident. Formatting and clippy run once, on Linux, since neither
+depends on the platform. Clippy warnings fail the build.
 
 The tests are outside-in. `tests/statusline_test.rs` holds a golden test that
 renders `initial-test-data/input.json` and compares it byte for byte with
