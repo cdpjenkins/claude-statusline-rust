@@ -35,7 +35,8 @@ struct TemporaryHome {
 
 impl TemporaryHome {
     fn new(name: &str) -> Self {
-        let path = std::env::temp_dir().join(format!("statusline-home-{}-{}", name, std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("statusline-home-{}-{}", name, std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
 
@@ -131,7 +132,10 @@ fn saves_the_session_when_asked_to() {
     let lines = home.saved_lines();
     assert_eq!(lines.len(), 1);
     let saved: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
-    assert_eq!(saved, serde_json::from_str::<serde_json::Value>(session_json).unwrap());
+    assert_eq!(
+        saved,
+        serde_json::from_str::<serde_json::Value>(session_json).unwrap()
+    );
 }
 
 #[test]
