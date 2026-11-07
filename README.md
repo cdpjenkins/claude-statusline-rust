@@ -234,7 +234,9 @@ renders `initial-test-data/input.json` and compares it byte for byte with
 `initial-test-data/expected.txt`, which pins the exact escape codes.
 `tests/binary_test.rs` runs the built binary over stdin, and
 `tests/git_adapter_test.rs` builds throwaway repositories in the temporary
-directory to cover clean, dirty, branched and detached states.
+directory to cover clean, dirty, branched and detached states. The binary test
+for git state uses the same throwaway repository, from `tests/support/mod.rs`,
+rather than a path that only exists on one machine.
 `tests/args_test.rs` covers flag parsing and `tests/input_log_test.rs` covers
 record normalisation and appending, both against temporary paths.
 

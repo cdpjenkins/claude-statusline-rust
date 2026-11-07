@@ -1,7 +1,10 @@
+mod support;
+
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use support::TemporaryRepo;
 
 fn run_statusline(session_json: &str) -> String {
     run_statusline_with(session_json, &[], std::env::temp_dir().as_path())
@@ -115,11 +118,17 @@ fn ends_the_statusline_with_a_single_newline() {
 
 #[test]
 fn reads_git_state_from_the_session_directory() {
-    let session_json = include_str!("../initial-test-data/input.json");
+    let repo = TemporaryRepo::new("binary");
+    repo.write_file("file.txt", "committed");
+    repo.commit_everything("initial");
+    let session_json = serde_json::json!({
+        "workspace": {"current_dir": repo.path()},
+    })
+    .to_string();
 
-    let statusline = run_statusline(session_json);
+    let statusline = run_statusline(&session_json);
 
-    assert!(statusline.contains('⎇'));
+    assert!(statusline.contains("⎇ main "));
 }
 
 #[test]

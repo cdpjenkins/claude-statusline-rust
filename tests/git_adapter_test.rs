@@ -1,53 +1,8 @@
+mod support;
+
 use claude_statusline_rust::git;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
-struct TemporaryRepo {
-    path: PathBuf,
-}
-
-impl TemporaryRepo {
-    fn new(name: &str) -> Self {
-        let path = std::env::temp_dir().join(format!("statusline-{}-{}", name, std::process::id()));
-        let _ = fs::remove_dir_all(&path);
-        fs::create_dir_all(&path).unwrap();
-
-        let repo = TemporaryRepo { path };
-        repo.run(&["init", "--initial-branch=main"]);
-        repo.run(&["config", "user.email", "test@example.com"]);
-        repo.run(&["config", "user.name", "Test"]);
-        repo
-    }
-
-    fn run(&self, arguments: &[&str]) {
-        let output = Command::new("git")
-            .args(arguments)
-            .current_dir(&self.path)
-            .output()
-            .unwrap();
-        assert!(output.status.success(), "git {:?} failed", arguments);
-    }
-
-    fn write_file(&self, name: &str, contents: &str) {
-        fs::write(self.path.join(name), contents).unwrap();
-    }
-
-    fn commit_everything(&self, message: &str) {
-        self.run(&["add", "-A"]);
-        self.run(&["commit", "-m", message]);
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for TemporaryRepo {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
-}
+use support::TemporaryRepo;
 
 #[test]
 fn reads_the_branch_of_a_clean_repository() {
