@@ -42,6 +42,19 @@ fn reports_an_untracked_file_as_dirty() {
 }
 
 #[test]
+fn reports_an_untracked_file_as_dirty_when_git_is_set_to_hide_them() {
+    let repo = TemporaryRepo::new("hidden-untracked");
+    repo.write_file("file.txt", "committed");
+    repo.commit_everything("initial");
+    repo.run(&["config", "status.showUntrackedFiles", "no"]);
+    repo.write_file("extra.txt", "untracked");
+
+    let status = git::read(repo.path()).unwrap();
+
+    assert!(status.dirty);
+}
+
+#[test]
 fn reads_the_current_branch_after_switching() {
     let repo = TemporaryRepo::new("branch");
     repo.write_file("file.txt", "committed");

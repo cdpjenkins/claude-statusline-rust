@@ -20,7 +20,11 @@ fn current_branch(directory: &Path) -> Option<String> {
 }
 
 fn has_uncommitted_changes(directory: &Path) -> Option<bool> {
-    let changes = run_git(directory, &["status", "--porcelain"])?;
+    // Untracked files count whatever status.showUntrackedFiles says.
+    let changes = run_git(
+        directory,
+        &["status", "--porcelain", "--untracked-files=normal"],
+    )?;
 
     Some(!changes.is_empty())
 }

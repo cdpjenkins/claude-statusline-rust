@@ -65,7 +65,8 @@ drawing it empty.
 
 **git** — the current branch, or the seven character commit when `HEAD` is
 detached. A `●` follows the branch when the working tree has uncommitted
-changes, counting untracked files. Read by running `git` in the session
+changes, counting untracked files even where git is configured to hide them
+(`status.showUntrackedFiles = no`). Read by running `git` in the session
 directory rather than from stdin, since Claude Code does not report it.
 
 **model** — `model.display_name` as Claude Code gives it, e.g. `Opus 5`.
