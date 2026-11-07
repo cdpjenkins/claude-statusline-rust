@@ -245,7 +245,10 @@ directory, so running them never writes to the real one.
 
 Git state is injected rather than looked up during rendering: `render` takes
 an `Option<&GitStatus>` so tests pass a fake, and `main` supplies the real
-adapter. `initial-test-data/output.txt` is the original capture this was
+adapter. It takes the session already parsed, as an `Option<&Session>` where
+`None` renders the warning line, since `main` needs the parsed session first
+to find the directory to run `git` in. Parsing once in `main` and passing the
+result on means the JSON is read once per prompt rather than twice. `initial-test-data/output.txt` is the original capture this was
 built from and is not used by the tests.
 
 Cost is deliberately not shown. The original capture had a `☉ $1.73 3%`

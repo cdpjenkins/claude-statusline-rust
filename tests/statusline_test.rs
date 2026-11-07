@@ -1,4 +1,4 @@
-use claude_statusline_rust::{render, GitStatus};
+use claude_statusline_rust::{GitStatus, Session};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// 2h14m before the five hour reset in `initial-test-data/input.json`.
@@ -9,6 +9,12 @@ fn now() -> SystemTime {
 
 fn at(seconds: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(seconds)
+}
+
+/// Parses and renders in one step, as `main` does, so each test can state its
+/// session as JSON.
+fn render(session_json: &str, git_status: Option<&GitStatus>, now: SystemTime) -> String {
+    claude_statusline_rust::render(Session::parse(session_json).as_ref(), git_status, now)
 }
 
 #[test]

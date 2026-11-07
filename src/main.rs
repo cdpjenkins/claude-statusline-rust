@@ -17,14 +17,16 @@ fn main() {
         }
     }
 
-    let current_dir = Session::parse(&session_json)
-        .and_then(|session| session.current_directory().map(str::to_string));
+    let session = Session::parse(&session_json);
 
-    let git_status = current_dir.and_then(|dir| git::read(Path::new(&dir)));
+    let git_status = session
+        .as_ref()
+        .and_then(Session::current_directory)
+        .and_then(|dir| git::read(Path::new(dir)));
 
     print!(
         "{}",
-        render(&session_json, git_status.as_ref(), SystemTime::now())
+        render(session.as_ref(), git_status.as_ref(), SystemTime::now())
     );
 }
 

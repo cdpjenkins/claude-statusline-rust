@@ -131,9 +131,15 @@ fn segment(background: u8, foreground: u8, text: String) -> Segment {
 const RESET: &str = "\x1b[0m";
 const SEPARATOR: char = '\u{e0b0}';
 
-pub fn render(session_json: &str, git_status: Option<&GitStatus>, now: SystemTime) -> String {
-    let segments = Session::parse(session_json)
-        .map(|session| session_segments(&session, git_status, now))
+/// Renders the line for a session parsed with [`Session::parse`]. `None`, a
+/// session that did not parse, renders the warning line.
+pub fn render(
+    session: Option<&Session>,
+    git_status: Option<&GitStatus>,
+    now: SystemTime,
+) -> String {
+    let segments = session
+        .map(|session| session_segments(session, git_status, now))
         .filter(|segments| !segments.is_empty())
         .unwrap_or_else(warning_segments);
 
