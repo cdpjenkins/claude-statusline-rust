@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// A git repository in the temporary directory, removed when dropped. It sets
-/// its own identity, so it works on a machine with no git config at all.
+/// its own identity and ignores the machine's global and system git config,
+/// so it works the same on a machine with no config and on one whose config
+/// signs commits, runs hooks or supplies a commit template.
 pub struct TemporaryRepo {
     path: PathBuf,
 }
@@ -27,6 +29,8 @@ impl TemporaryRepo {
     pub fn run(&self, arguments: &[&str]) {
         let output = Command::new("git")
             .args(arguments)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
             .current_dir(&self.path)
             .output()
             .unwrap();
